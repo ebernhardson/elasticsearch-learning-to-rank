@@ -8,7 +8,7 @@ __pycache__/
 RankLib.jar
 tmdb.json
 model.txt
-
+src/main/bridge/*.o
 
 .idea/
 .gradle/

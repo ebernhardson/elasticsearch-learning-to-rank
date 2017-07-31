@@ -32,6 +32,23 @@ public abstract class DenseLtrRanker implements LtrRanker {
         return new DenseFeatureVector(size());
     }
 
+    public DenseFeatureVector[] newFeatureVectors(FeatureVector reuse[], int numVecs) {
+        DenseFeatureVector[] vectors;
+        if (reuse != null && reuse.length >= numVecs) {
+            assert reuse instanceof DenseFeatureVector[];
+            vectors = (DenseFeatureVector[]) reuse;
+            for (DenseFeatureVector vector : vectors) {
+                vector.reset();
+            }
+        } else {
+            vectors = new DenseFeatureVector[numVecs];
+            for (int i = 0; i < numVecs; i++) {
+                vectors[i] = new DenseFeatureVector(size());
+            }
+        }
+        return vectors;
+    }
+
     @Override
     public float score(FeatureVector vector) {
         assert vector instanceof DenseFeatureVector;
@@ -39,6 +56,13 @@ public abstract class DenseLtrRanker implements LtrRanker {
     }
 
     protected abstract float score(DenseFeatureVector vector);
+
+    public void score(DenseFeatureVector[] vectors, float[] scores) {
+        assert vectors.length <= scores.length;
+        for (int i = 0; i < vectors.length; i++) {
+            scores[i] = score(vectors[i]);
+        }
+    }
 
     /**
      * The number of features supported by this ranker

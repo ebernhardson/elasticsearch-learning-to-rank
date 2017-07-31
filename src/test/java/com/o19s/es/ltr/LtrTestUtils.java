@@ -94,7 +94,9 @@ public class LtrTestUtils {
         for (float[] s : scores) {
             LinearRankerTests.fillRandomWeights(s);
         }
-        for (int i = 0; i < nPass; i++) {
+        int firstPass = nPass / 2;
+        int i;
+        for (i = 0; i < firstPass; i++) {
             vectorOne = one.newFeatureVector(vectorOne);
             vectorTwo = one.newFeatureVector(vectorTwo);
             System.arraycopy(scores[i%100], 0, vectorOne.scores, 0, vectorOne.scores.length);
@@ -102,6 +104,26 @@ public class LtrTestUtils {
             float scoreOne = one.score(vectorOne);
             float scoreTwo = two.score(vectorTwo);
             assertEquals(scoreOne, scoreTwo, Math.ulp(scoreOne));
+        }
+        // Why are these different? Also
+        int batchSize = 16;
+        DenseFeatureVector vectorsOne[] = one.newFeatureVectors(null, batchSize);
+        DenseFeatureVector vectorsTwo[] = two.newFeatureVectors(null, batchSize);
+        float scoresOne[] = new float[batchSize];
+        float scoresTwo[] = new float[batchSize];
+        for (; i < nPass; i += batchSize) {
+            // Test batches of 16
+            vectorsOne = one.newFeatureVectors(vectorsOne, batchSize);
+            vectorsTwo = two.newFeatureVectors(vectorsOne, batchSize);
+            for (int j = 0; j < batchSize; j++) {
+                System.arraycopy(scores[(i+j)%100], 0, vectorsOne[j].scores, 0, vectorsOne[j].scores.length);
+                System.arraycopy(scores[(i+j)%100], 0, vectorsTwo[j].scores, 0, vectorsTwo[j].scores.length);
+            }
+            one.score(vectorsOne, scoresOne);
+            two.score(vectorsTwo, scoresTwo);
+            for (int j = 0; j < batchSize; j++) {
+                assertEquals(scoresOne[j], scoresTwo[j], Math.ulp(scoresOne[j]));
+            }
         }
     }
 }

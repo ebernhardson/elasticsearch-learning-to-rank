@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 
 public class BenchTests extends LuceneTestCase {
     static final Logger LOGGER = ESLoggerFactory.getLogger(BenchTests.class);
-    static final int NFEAT = 1000;
+    static final int NFEAT = 25;
     static final int MAX_TREES = 1000;
     static final int TREE_STEPS = 100;
     static final int[] DEPTHS = new int[]{4,6,8,10};
@@ -48,7 +48,7 @@ public class BenchTests extends LuceneTestCase {
     private SortedMap<String, List<Double>> metrics = new TreeMap<>();
     private float[][] scores = new float[100][NFEAT];
 
-    public void renameMeToRunTheBench() throws IOException {
+    public void testRenameMeToRunTheBench() throws IOException {
         for (float[] score : scores) {
             LinearRankerTests.fillRandomWeights(score);
         }
@@ -95,12 +95,13 @@ public class BenchTests extends LuceneTestCase {
         addMetric("04_nodes", counts.nodes.doubleValue());
         addMetric("05_docs", DOCS);
 
-        benchRanker(naive.toBinBinTree());
-        benchRanker(naive.toPrimTree());
-        benchRanker(naive);
+        //benchRanker(naive.toBinBinTree(), nTree);
+        //benchRanker(naive.toPrimTree(), nTree);
+        benchRanker(naive, nTree);
+        benchRanker(naive.toJniNoBranchTree(), nTree);
     }
 
-    public void benchRanker(DenseLtrRanker ranker) {
+    public void benchRanker(DenseLtrRanker ranker, int nTree) {
         String name = ranker.name().replaceAll("^([^_]+)_.*$", "$1");
         // Warm up
         recordTime(ranker, scores, DOCS);
@@ -110,7 +111,7 @@ public class BenchTests extends LuceneTestCase {
             long time = recordTime(ranker, scores, DOCS);
             totalTime = Math.addExact(totalTime, time);
         }
-        LOGGER.info("\t{} \t {}", name, totalTime);
+        LOGGER.info("\t{} \t {} \t {}", name, totalTime, (new Float(totalTime / (float) nTree)).toString());
         addMetric(name + "_tot_run_time", totalTime);
         addMetric(name + "_avg_run_time", totalTime/NRUN);
         addMetric(name + "_mem_size", ((Accountable)ranker).ramBytesUsed());
@@ -118,11 +119,16 @@ public class BenchTests extends LuceneTestCase {
 
     long recordTime(DenseLtrRanker ranker, float[][] scores, int nPass) {
         long st = System.currentTimeMillis();
-        DenseFeatureVector vector = null;
-        while(nPass-->0) {
-            vector = ranker.newFeatureVector(vector);
-            System.arraycopy(scores[nPass%scores.length], 0, vector.scores, 0, vector.scores.length);
-            ranker.score(vector);
+        int chunks = 16;
+        DenseFeatureVector[] vectors = new DenseFeatureVector[chunks];
+        float[] results = new float[chunks];
+        while((nPass -= chunks) > 0) {
+            for (int i = 0; i < chunks; i++) {
+                vectors[i] = ranker.newFeatureVector(vectors[i]);
+                System.arraycopy(scores[(nPass + i) % scores.length], 0, vectors[i].scores, 0, vectors[i].scores.length);
+            }
+            //System.out.println("Score one");
+            ranker.score(vectors, results);
         }
         return System.currentTimeMillis() - st;
     }

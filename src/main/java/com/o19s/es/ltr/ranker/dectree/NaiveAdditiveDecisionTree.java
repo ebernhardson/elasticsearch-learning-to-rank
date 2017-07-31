@@ -60,11 +60,19 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
         return new PrimTree.BuildState(trees, modelSize).build();
     }
 
+    public CodeGenTree toCodeGenTree() { return new CodeGenTree.BuildState(trees, modelSize).build(); }
+
+    public JniNoBranchTree toJniNoBranchTree() { return new JniNoBranchTree.BuildState(trees, modelSize).build(); }
+
+    public NoBranchDirectTree toNoBranchTree() { return new NoBranchDirectTree.BuildState(trees, modelSize).build(); }
+
     public DenseLtrRanker transform(Implementation impl) {
         switch (impl) {
             case Naive: return this;
             case Prim: return this.toPrimTree();
             case BinBin: return this.toBinBinTree();
+            case CodeGen: return this.toCodeGenTree();
+            case NoBranch: return this.toJniNoBranchTree();
             default: throw new IllegalArgumentException("Unknown " + impl);
         }
     }
@@ -72,7 +80,9 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
     public enum Implementation {
         Naive,
         Prim,
-        BinBin
+        BinBin,
+        CodeGen,
+        NoBranch
     }
 
     @Override
@@ -83,6 +93,32 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
             sum += trees[i].eval(scores);
         }
         return sum;
+    }
+
+    @Override
+    public void score(DenseFeatureVector[] denseVects, float[] scores) {
+        assert denseVects.length <= scores.length;
+        int i = 3;
+        for (; i < denseVects.length; i += 4) {
+            float[] s3 = denseVects[i-3].scores;
+            scores[i-3] = 0;
+            float[] s2 = denseVects[i-2].scores;
+            scores[i-2] = 0;
+            float[] s1 = denseVects[i-1].scores;
+            scores[i-1] = 0;
+            float[] s0 = denseVects[i].scores;
+            scores[i] = 0;
+            for (int j = 0; j < trees.length; j++) {
+                scores[i-3] += trees[j].eval(s3);
+                scores[i-2] += trees[j].eval(s2);
+                scores[i-1] += trees[j].eval(s1);
+                scores[i] += trees[j].eval(s0);
+            }
+        }
+        i -= 4;
+        for (i++; i < denseVects.length; i++) {
+            scores[i] = score(denseVects[i]);
+        }
     }
 
     @Override

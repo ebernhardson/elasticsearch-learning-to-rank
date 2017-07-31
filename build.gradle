@@ -1,4 +1,3 @@
-
 buildscript {
   repositories {
     mavenCentral()
@@ -7,16 +6,17 @@ buildscript {
   }
 
   dependencies {
-    classpath "org.elasticsearch.gradle:build-tools:5.3.0"
+    classpath "org.elasticsearch.gradle:build-tools:" + es_version
   }
 }
 
 group = 'com.o19s'
-version = '0.1.1-es5.3.0'
+version = '0.1.1-es' + es_version + '-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: 'elasticsearch.esplugin'
 apply plugin: 'idea'
+apply plugin: 'c'
 
 esplugin {
   name 'ltr-query'
@@ -34,10 +34,18 @@ repositories {
     jcenter()
 }
 dependencies {
-  compile 'org.elasticsearch:elasticsearch:5.3.0'
+  compile 'org.elasticsearch:elasticsearch:' + es_version
   compile 'com.o19s:RankyMcRankFace:0.1.0'
-  testCompile 'org.elasticsearch.test:framework:5.3.0'
+  compile 'org.javassist:javassist:3.21.0-GA'
+  compile 'janino:janino:2.5.10'
+  testCompile 'org.elasticsearch.test:framework:' + es_version
 }
+
+compileJava {
+    options.compilerArgs << '-XDignore.symbol.file'
+}
+
+forbiddenApisMain.enabled = false;
 
 // Set to false to not use elasticsearch checkstyle rules
 checkstyleMain.enabled = true
@@ -50,4 +58,46 @@ dependencyLicenses.enabled = false
 thirdPartyAudit.enabled = false
 
 // Uncomment this to skip license header checks
-// licenseHeaders.enabled = false
+licenseHeaders.enabled = false
+
+model {
+    components {
+        bridge(NativeLibrarySpec) {
+            sources {
+                c {
+                    source {
+                        srcDir 'src/main/bridge'
+                        include '*.c'
+                    }
+                }
+            }
+            buildTypes {
+                all
+            }
+        }
+    }
+    toolChains {
+        gcc(Gcc) {
+            eachPlatform {
+                cCompiler.withArguments { args ->
+                    args << "-O3"
+                    args << "-march=native"
+                    args << "-I$System.env.JAVA_HOME/include"
+                    args << "-I$System.env.JAVA_HOME/include/linux"
+                }
+            }
+        }
+    }
+}
+
+jar {
+    from('build/libs/bridge/shared') {
+        into 'lib/'
+        include 'libbridge.so'
+    }
+}
+
+tasks.withType(com.carrotsearch.gradle.junit4.RandomizedTestingTask) {
+    systemProperty "java.library.path", "$projectDir/build/libs/bridge/shared"
+}
+

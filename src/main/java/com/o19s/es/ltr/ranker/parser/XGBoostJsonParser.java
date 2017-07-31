@@ -64,6 +64,9 @@ public class XGBoostJsonParser implements LtrRankerParser {
         case "binbin":
             impl = NaiveAdditiveDecisionTree.Implementation.BinBin;
             break;
+        case "codegen":
+            impl = NaiveAdditiveDecisionTree.Implementation.CodeGen;
+            break;
         default:
             LOGGER.warn("Unkown value for {} using defaults", DEC_TREE_IMPL.getKey());
             impl = NaiveAdditiveDecisionTree.Implementation.Prim;
