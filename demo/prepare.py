@@ -7,10 +7,6 @@ from log_conf import Logger
 from utils import RANKLIB_JAR
 
 
-def download_ranklib_library():
-    download_ltr_resource(RANKLIB_JAR)
-
-
 def download_ltr_resource(resource):
     """
     Downloads the provided resource from the o19s website to your local folder. When running this script, the defaults
@@ -18,7 +14,7 @@ def download_ltr_resource(resource):
     :param resource: the name of the resource to download
     :return:
     """
-    ltr_domain = 'http://es-learn-to-rank.labs.o19s.com/'
+    ltr_domain = 'https://people.wikimedia.org/~ebernhardson/esltr/'
     resource_url = urljoin(ltr_domain, resource)
     with open(resource, 'wb') as dest:
         Logger.logger.info("GET %s" % resource_url)
@@ -29,6 +25,4 @@ def download_ltr_resource(resource):
 
 
 if __name__ == "__main__":
-
-    # download_ltr_resource('tmdb.json')
-    download_ranklib_library()
+    download_ltr_resource('discernatron.json')

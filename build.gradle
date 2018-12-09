@@ -54,6 +54,11 @@ dependencies {
   compile 'org.elasticsearch:elasticsearch:6.5.0'
   compile 'com.o19s:RankyMcRankFace:0.1.1'
   compile "com.github.spullara.mustache.java:compiler:0.9.3"
+  compile "org.tensorflow:tensorflow:1.12.0"
+  compile "org.tensorflow:libtensorflow:1.12.0"
+  compile "org.tensorflow:libtensorflow_jni:1.12.0"
+  compile "org.tensorflow:proto:1.12.0"
+  compile "com.google.protobuf:protobuf-java:3.5.1"
   testCompile 'org.elasticsearch.test:framework:6.5.0'
 }
 

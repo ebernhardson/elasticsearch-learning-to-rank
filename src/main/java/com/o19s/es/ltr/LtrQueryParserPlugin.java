@@ -44,6 +44,7 @@ import com.o19s.es.ltr.query.StoredLtrQueryBuilder;
 import com.o19s.es.ltr.query.ValidatingLtrQueryBuilder;
 import com.o19s.es.ltr.ranker.parser.LinearRankerParser;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
+import com.o19s.es.ltr.ranker.parser.TensorflowRankerParser;
 import com.o19s.es.ltr.ranker.parser.XGBoostJsonParser;
 import com.o19s.es.ltr.ranker.ranklib.RankLibScriptEngine;
 import com.o19s.es.ltr.ranker.ranklib.RanklibModelParser;
@@ -93,6 +94,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -107,15 +109,18 @@ import static java.util.Collections.unmodifiableList;
 public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, ScriptPlugin, ActionPlugin, AnalysisPlugin {
     private final LtrRankerParserFactory parserFactory;
     private final Caches caches;
+    private final Suppliers.MutableSupplier<Path> tmpDirSupplier;
 
     public LtrQueryParserPlugin(Settings settings) {
         caches = new Caches(settings);
         // Use memoize to Lazy load the RankerFactory as it's a heavy object to construct
         Supplier<RankerFactory> ranklib = Suppliers.memoize(RankerFactory::new);
+        tmpDirSupplier = new Suppliers.MutableSupplier<>();
         parserFactory = new LtrRankerParserFactory.Builder()
                 .register(RanklibModelParser.TYPE, () -> new RanklibModelParser(ranklib.get()))
                 .register(LinearRankerParser.TYPE, LinearRankerParser::new)
                 .register(XGBoostJsonParser.TYPE, XGBoostJsonParser::new)
+                .register(TensorflowRankerParser.TYPE, () -> new TensorflowRankerParser(tmpDirSupplier))
                 .build();
     }
 
@@ -222,6 +227,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
                                                Environment environment,
                                                NodeEnvironment nodeEnvironment,
                                                NamedWriteableRegistry namedWriteableRegistry) {
+        tmpDirSupplier.set(environment.tmpFile());
         clusterService.addListener(event -> {
             for (Index i : event.indicesDeleted()) {
                 if (IndexFeatureStore.isIndexStore(i.getName())) {
